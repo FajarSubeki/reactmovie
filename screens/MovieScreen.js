@@ -9,7 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import Cast from '../components/cast'
 import MovieList from '../components/movieList'
 import Loading from '../components/loading'
-import { fetchMovieDetails } from '../api/moviedb'
+import { fallbackMoviePoster, fetchMovieCredits, fetchMovieDetails, fetchSimilarMovies, image500 } from '../api/moviedb'
 
 var {width, height} = Dimensions.get('window');
 const ios = Platform.OS == "ios"
@@ -21,20 +21,35 @@ export default function MovieScreen() {
     const [isFavourite, toggleFavourite] = useState(false)
     const navigation = useNavigation()
     const [loading, setLoading] = useState(false)
-    const [cast, setCast] = useState([1,2,3,4,5])
-    const [similarMovies, setSimilarMoviews] = useState([1,2,3,4,5])
+    const [cast, setCast] = useState([])
+    const [similarMovies, setSimilarMovies] = useState([])
+    const [movie, setMovie] = useState({})
     let movieName = "Avengers Infinity War"
     useEffect(() => {
         // call the movie details api
-        console.log('itemid', item.id)
         setLoading(true)
         getMovieDetails(item.id)
+        getMovieCredits(item.id)
+        getSimilarMovies(item.id)
     }, [item])
 
     const getMovieDetails = async id => {
         const data = await fetchMovieDetails(id)
-        console.log('get movie details: ', data)
+        // console.log('get movie details: ', data)
+        if (data) setMovie(data)
         setLoading(false)
+    }
+
+    const getMovieCredits = async id => {
+        const data = await fetchMovieCredits(id)
+        // console.log('got credits: ', data)
+        if(data && data.cast) setCast(data.cast)
+    }
+
+    const getSimilarMovies = async id => {
+        const data = await fetchSimilarMovies(id)
+        console.log('got similar: ', data)
+        if (data && data.results) setSimilarMovies(data.results)
     }
 
   return (
@@ -58,7 +73,8 @@ export default function MovieScreen() {
                 ) : (
                     <View>
                         <Image 
-                            source={require('../assets/images/mufasa.jpeg')}
+                            // source={require('../assets/images/mufasa.jpeg')}
+                            source={{uri: image500(movie?.poster_path) || fallbackMoviePoster}}
                             style={{width, height: height*0.55}}
                         />
                         <LinearGradient
@@ -78,28 +94,41 @@ export default function MovieScreen() {
             {/* title */}
             <Text className="text-white text-center text-3xl font-bold tracking-wider">
                 {
-                    movieName
+                    movie?.title
                 }
             </Text>
             {/* status, release, runtime */}
-            <Text className="text-neutral-400 font-semibold text-base text-center mt-3">
-                Released • Thrill • Comedi
-            </Text>
+            {
+                movie?.id?(
+                    <Text className="text-neutral-400 font-semibold text-base text-center mt-3">
+                        {movie?.status} • {movie?.release_date?.split('-')[0]} • {movie?.runtime} min
+                    </Text>
+                ):null
+            }
             {/* genres */}
             <View className="flex-row justify-center mx-4 space-x-2 mt-2">
-                <Text className="text-neutral-400 font-semibold text-base text-center">
-                    Action •
-                </Text>
-                <Text className="text-neutral-400 font-semibold text-base text-center">
+                {
+                    movie?.genres?.map((genre, index)=> {
+                        let showDot = index+1 != movie.genres.length
+                        return (
+                            <Text key={index} className="text-neutral-400 font-semibold text-base text-center">
+                                {genre?.name} {showDot? "•": null}
+                            </Text>
+                        )
+                    })
+                }
+                {/* <Text className="text-neutral-400 font-semibold text-base text-center">
                     Thrill •
                 </Text>
                 <Text className="text-neutral-400 font-semibold text-base text-center">
                     Comedy
-                </Text>
+                </Text> */}
             </View>
             {/* description */}
             <Text className="text-neutral-400 mx-4 tracking-wide mt-3">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas rhoncus finibus tempus. Maecenas faucibus varius leo vel hendrerit. Donec libero mi, scelerisque eget vestibulum in, ornare vel libero. Aliquam metus ex, faucibus id justo et, suscipit placerat ligula. Donec luctus imperdiet laoreet. Suspendisse at lacus at nisi mollis maximus. Phasellus bibendum elit elementum euismod ornare. Donec pretium mauris ac semper vulputate.
+                {
+                    movie?.overview
+                }
             </Text>
         </View>
 
@@ -107,7 +136,7 @@ export default function MovieScreen() {
         <Cast navigation={navigation} cast={cast} />
 
         {/* similar movies */}
-        {/* <MovieList title="Similar Movies" hideSeeAll={true} data={similarMovies}/> */}
+        <MovieList title="Similar Movies" hideSeeAll={true} data={similarMovies}/>
 
     </ScrollView>
   )
